@@ -404,8 +404,10 @@ if __name__ == "__main__":
     print('Sheets:')
     for s in gen.sheets:
         s.print(gen.replacement)
+    print('Stops:')
     for n, s in enumerate(gen.stops):
-        print(n, s)
+        print(n, ", ".join([c+":"+str(con) for c, con in s]))
+    print()
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -427,3 +429,10 @@ if __name__ == "__main__":
         start_row = start_row + ROWS_PER_SHEET    
 
     wb.save(args.filename)
+
+    print('Saved output in', args.filename)
+    print('To print,')
+    print('1. open in Excel or LibreOffice Calc,')
+    print('2. adjust page size so that all 9 columns of each sudoku is seen')
+    print('   and so that the pages has the right height (first line in same place)')
+    print('3. Print (or export to pdf)')
