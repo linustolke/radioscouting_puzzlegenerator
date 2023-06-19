@@ -62,6 +62,13 @@ CLUE_ALIGNMENT = openpyxl.styles.Alignment(horizontal="right")
 INTRO_ALIGNMENT = openpyxl.styles.Alignment(vertical="top",
                                             wrap_text=True)
 
+CLUE_FONT = openpyxl.styles.Font(size=9, italic=True)
+VALUE_FONT = openpyxl.styles.Font(size=14, bold=True)
+CELL_SIDE = openpyxl.styles.Side(border_style="thin",
+                                 color='FF000000')
+BOX_SIDE = openpyxl.styles.Side(border_style="double",
+                                color='FF000000')
+
 class Replacement(object):
     def __init__(self, replacements, stops_for_clue):
         self._replacements = replacements
@@ -225,11 +232,29 @@ class Sheet(object):
 
         row = start_row + 15
         for line in range(9):
+            line_borders = [ {"top":CELL_SIDE}, {}, {"bottom":CELL_SIDE} ]
+            if line % 3 == 0:
+                line_borders[0]["top"] = BOX_SIDE
+            if line % 3 == 2:
+                line_borders[2]["bottom"] = BOX_SIDE
             for column in range(9):
+                column_borders = { "left":CELL_SIDE, "right":CELL_SIDE }
+                if column % 3 == 0:
+                    column_borders["left"] = BOX_SIDE
+                if column % 3 == 2:
+                    column_borders["right"] = BOX_SIDE
                 ws.cell(row=row, column=1 + column).value = self.get_board_clue(line, column, replacement)
+                ws.cell(row=row, column=1 + column).font = CLUE_FONT
                 ws.cell(row=row, column=1 + column).alignment = CELL_ALIGNMENT
-                ws.cell(row=row + 1, column=1+ column).value = self.get_board_value(line, column)
-                ws.cell(row=row + 1, column=1+ column).alignment = CELL_ALIGNMENT
+                ws.cell(row=row, column=1 + column).border = openpyxl.styles.Border(**line_borders[0], **column_borders)
+
+                ws.cell(row=row + 1, column=1 + column).value = self.get_board_value(line, column)
+                ws.cell(row=row + 1, column=1 + column).font = VALUE_FONT
+                ws.cell(row=row + 1, column=1 + column).alignment = CELL_ALIGNMENT
+                ws.cell(row=row + 1, column=1 + column).border = openpyxl.styles.Border(**line_borders[1], **column_borders)
+
+                ws.cell(row=row + 2, column=1 + column).border = openpyxl.styles.Border(**line_borders[2], **column_borders)
+                
             row = row + 3
 
         assert row - start_row < ROWS_PER_SHEET
