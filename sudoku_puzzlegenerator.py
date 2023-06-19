@@ -59,7 +59,8 @@ args = None
 
 CELL_ALIGNMENT = openpyxl.styles.Alignment(horizontal="center")
 CLUE_ALIGNMENT = openpyxl.styles.Alignment(horizontal="right")
-INTRO_ALIGNMENT = openpyxl.styles.Alignment(wrap_text=True)
+INTRO_ALIGNMENT = openpyxl.styles.Alignment(vertical="top",
+                                            wrap_text=True)
 
 class Replacement(object):
     def __init__(self, replacements, stops_for_clue):
@@ -376,15 +377,15 @@ class SudokuGenerator(object):
         ws.cell(row=start_row, column=1).alignment = INTRO_ALIGNMENT
         
         row = start_row + 3
-        ws.merge_cells(start_row=row, end_row=row + 8, start_column=1, end_column=9)
+        ws.merge_cells(start_row=row, end_row=row + 6, start_column=1, end_column=9)
         ws.cell(row=row, column=1).value = INTRO_TEXT_PER_STOP
         ws.cell(row=row, column=1).alignment = INTRO_ALIGNMENT
 
-        start_row = row + 10
-        CLUES_PER_COLUMN = 10
+        start_row = row + 8
+        CLUES_PER_COLUMN = 15
         for n, tuple in enumerate(stop):
             clue, value = tuple
-            row = start_row + (n % CLUES_PER_COLUMN) * 3
+            row = start_row + (n % CLUES_PER_COLUMN) * 2
             column = 1 + 4 * (n // CLUES_PER_COLUMN)
             ws.cell(row=row, column=column).value = clue + " :"
             ws.cell(row=row, column=column).alignment = CLUE_ALIGNMENT
