@@ -10,9 +10,16 @@ Hard:
 --clues-left=0 --clue-letters=BCDEGPTV
 """
 
+import argparse
+import openpyxl
+import openpyxl.styles
+import random
+
+
 HEADING_PER_SHEET = "Deltagarblankett"
 
-INTRO_TEXT_PER_SHEET = """Det här är ett deltagarprotokoll för Radiosudoku på Skogsrå.
+INTRO_TEXT_PER_SHEET = """\
+Det här är ett deltagarprotokoll för Radiosudoku på Skogsrå.
 
 Regler för vanlig sudoku gäller dvs, i varje ruta ska det in en siffra
 på ett sånt sätt att varje rad, varje kolumn, och varje 3x3-ruta
@@ -31,11 +38,6 @@ eller som ni kan prova en kväll."""
 
 ROWS_PER_SHEET = 51
 
-
-import argparse
-import openpyxl
-import openpyxl.styles
-import random
 
 parser = argparse.ArgumentParser(description="Generate a set of sudoku games.")
 parser.add_argument('--sheets', type=int, default=2,
@@ -69,6 +71,7 @@ CELL_SIDE = openpyxl.styles.Side(border_style="thin",
 BOX_SIDE = openpyxl.styles.Side(border_style="double",
                                 color='FF000000')
 
+
 class Replacement(object):
     def __init__(self, replacements, stops_for_clue):
         self._replacements = replacements
@@ -84,9 +87,16 @@ class Replacement(object):
         return None
 
     def move_stops(self, translation):
-        """Generate a new replacement where the stops have new names according to translation"""
+        """Generate a new replacement.
+
+        In the new replacement, the stops have new names according
+        to translation.
+        """
         return Replacement(self._replacements,
-                           {key: translation[value] for key, value in self._stops_for_clue.items()})
+                           {key: translation[value]
+                            for key, value
+                            in self._stops_for_clue.items()})
+
 
 class Sheet(object):
     def _found_in_row(self, candidate, index):
@@ -200,11 +210,12 @@ class Sheet(object):
     def print2(self, replacement):
         for line in range(9):
             for column in range(9):
-                print(f"| {self.get_board_clue(line, column, replacement):^5} / {self.get_board_value(line, column):^1}",
+                print(f"| {self.get_board_clue(line, column, replacement):^5}",
+                      '/',
+                      f"{self.get_board_value(line, column):^1}",
                       end=' ')
             print("|")
         print()
-
 
     def output(self, ws, sheet_identity, start_row, replacement):
         """Will fill the worksheet from line start_line with the sheet.
@@ -221,45 +232,51 @@ class Sheet(object):
         Either clue or value is given. No lines within each cell.
         Thin lines around except for the box lines that are double size.
         """
-        ws.merge_cells(start_row=start_row, end_row=start_row, start_column=1, end_column=9)
+        ws.merge_cells(start_row=start_row, end_row=start_row,
+                       start_column=1, end_column=9)
         ws.cell(row=start_row, column=1).value = sheet_identity
         ws.cell(row=start_row, column=1).alignment = INTRO_ALIGNMENT
 
         row = start_row + 3
-        ws.merge_cells(start_row=row, end_row=row + 8, start_column=1, end_column=9)
+        ws.merge_cells(start_row=row, end_row=row + 8,
+                       start_column=1, end_column=9)
         ws.cell(row=row, column=1).value = INTRO_TEXT_PER_SHEET
         ws.cell(row=row, column=1).alignment = INTRO_ALIGNMENT
 
         row = start_row + 15
         for line in range(9):
-            line_borders = [ {"top":CELL_SIDE}, {}, {"bottom":CELL_SIDE} ]
+            line_borders = [{"top": CELL_SIDE}, {}, {"bottom": CELL_SIDE}]
             if line % 3 == 0:
                 line_borders[0]["top"] = BOX_SIDE
             if line % 3 == 2:
                 line_borders[2]["bottom"] = BOX_SIDE
             for column in range(9):
-                column_borders = { "left":CELL_SIDE, "right":CELL_SIDE }
+                column_borders = {"left": CELL_SIDE, "right": CELL_SIDE}
                 if column % 3 == 0:
                     column_borders["left"] = BOX_SIDE
                 if column % 3 == 2:
                     column_borders["right"] = BOX_SIDE
-                ws.cell(row=row, column=1 + column).value = self.get_board_clue(line, column, replacement)
-                ws.cell(row=row, column=1 + column).font = CLUE_FONT
-                ws.cell(row=row, column=1 + column).alignment = CELL_ALIGNMENT
-                ws.cell(row=row, column=1 + column).border = openpyxl.styles.Border(**line_borders[0], **column_borders)
+                cell = ws.cell(row=row, column=1 + column).value
+                cell.value = self.get_board_clue(line, column, replacement)
+                cell.font = CLUE_FONT
+                cell.alignment = CELL_ALIGNMENT
+                cell.border = openpyxl.styles.Border(**line_borders[0],
+                                                     **column_borders)
 
-                ws.cell(row=row + 1, column=1 + column).value = self.get_board_value(line, column)
-                ws.cell(row=row + 1, column=1 + column).font = VALUE_FONT
-                ws.cell(row=row + 1, column=1 + column).alignment = CELL_ALIGNMENT
-                ws.cell(row=row + 1, column=1 + column).border = openpyxl.styles.Border(**line_borders[1], **column_borders)
+                cell = ws.cell(row=row + 1, column=1 + column)
+                cell.value = self.get_board_value(line, column)
+                cell.font = VALUE_FONT
+                cell.alignment = CELL_ALIGNMENT
+                cell.border = openpyxl.styles.Border(**line_borders[1],
+                                                     **column_borders)
 
-                ws.cell(row=row + 2, column=1 + column).border = openpyxl.styles.Border(**line_borders[2], **column_borders)
-                
+                cell = ws.cell(row=row + 2, column=1 + column)
+                cell.border = openpyxl.styles.Border(**line_borders[2],
+                                                     **column_borders)
+
             row = row + 3
 
         assert row - start_row < ROWS_PER_SHEET
-
-
 
 
 class SudokuGenerator(object):
@@ -282,7 +299,7 @@ class SudokuGenerator(object):
         # search indefinately for options
         for i in range(1, 10):
             if (pow(len(self._clue_letters), i) >
-                self._number_of_sheets * self._number_of_clues_per_sheet):
+                    self._number_of_sheets * self._number_of_clues_per_sheet):
                 self._clue_length = i
                 break
         else:
@@ -290,15 +307,16 @@ class SudokuGenerator(object):
         self._used_clues = []
         self.sheets = []
 
-        self._replacements = dict() # value => [entry, ...]
-        self._replacement_clues = dict() # entry => clue
-        self.stops = dict() # stop# => [(clue, value), ...]
-        self._stop_for_clue = dict() # clue => stopindex
+        self._replacements = dict()        # value => [entry, ...]
+        self._replacement_clues = dict()   # entry => clue
+        self.stops = dict()                # stop# => [(clue, value), ...]
+        self._stop_for_clue = dict()       # clue => stopindex
 
     def generate_clue(self):
         clue = ""
         for i in range(self._clue_length):
-            clue = clue + self._clue_letters[random.randint(0, len(self._clue_letters) - 1)]
+            r = random.randint(0, len(self._clue_letters) - 1)
+            clue = clue + self._clue_letters[r]
         if clue in self._used_clues:
             return self.generate_clue()
         self._used_clues.append(clue)
@@ -351,7 +369,7 @@ class SudokuGenerator(object):
         while saved_heaps_tuples:
             # allocated it to the stop with the least entries
             stops_tuples = sorted(stops_tuples,
-                                  key=lambda x: sum([len(l[0]) for l in x]))
+                                  key=lambda x: sum([len(t[0]) for t in x]))
             stops_tuples[0].append(saved_heaps_tuples.pop(0))
 
         if args.debug:
@@ -364,14 +382,14 @@ class SudokuGenerator(object):
 
         self.stops = []
         for stop in stops_tuples:
-            self.stops.append(sorted([(clue, value) 
+            self.stops.append(sorted([(clue, value)
                                       for heap, value, clue in stop]))
 
         random.shuffle(self.stops)
         for n, stop in enumerate(self.stops):
             for clue, _ in stop:
                 self._stop_for_clue[clue] = n
-            
+
     def calculate(self):
         """Generate a set of sheets then move clues to stops."""
         clue = 100
@@ -394,15 +412,18 @@ class SudokuGenerator(object):
                 self._replacements[value].append(clue)
 
         self.allocate_replacements_to_stops()
-        self.replacement = Replacement(self._replacement_clues, self._stop_for_clue)
+        self.replacement = Replacement(self._replacement_clues,
+                                       self._stop_for_clue)
 
     def output_stop(self, ws, stop, stop_number, stop_identity, start_row):
-        ws.merge_cells(start_row=start_row, end_row=start_row, start_column=1, end_column=9)
+        ws.merge_cells(start_row=start_row, end_row=start_row,
+                       start_column=1, end_column=9)
         ws.cell(row=start_row, column=1).value = stop_identity
         ws.cell(row=start_row, column=1).alignment = INTRO_ALIGNMENT
-        
+
         row = start_row + 3
-        ws.merge_cells(start_row=row, end_row=row + 6, start_column=1, end_column=9)
+        ws.merge_cells(start_row=row, end_row=row + 6,
+                       start_column=1, end_column=9)
         ws.cell(row=row, column=1).value = INTRO_TEXT_PER_STOP
         ws.cell(row=row, column=1).alignment = INTRO_ALIGNMENT
 
@@ -439,12 +460,15 @@ if __name__ == "__main__":
     ws = wb.active
 
     # Number the stops from 1 instead of from 0
-    stop_number_translation = {x:y for x, y in enumerate(range(1, 1 + args.stops))}
+    stop_number_translation = {x: y
+                               for x, y
+                               in enumerate(range(1, 1 + args.stops))}
     replacement = gen.replacement.move_stops(stop_number_translation)
 
     start_row = 1  # In spreadsheet indexing this is the first
     for n, s in enumerate(gen.sheets):
-        s.output(ws, HEADING_PER_SHEET + " " + str(1 + n), start_row, replacement)
+        s.output(ws, HEADING_PER_SHEET + " " + str(1 + n),
+                 start_row, replacement)
         start_row = start_row + ROWS_PER_SHEET
 
     for n, s in enumerate(gen.stops):
@@ -452,7 +476,7 @@ if __name__ == "__main__":
         gen.output_stop(ws, s, stop_number,
                         HEADING_PER_STOP + " " + str(stop_number),
                         start_row)
-        start_row = start_row + ROWS_PER_SHEET    
+        start_row = start_row + ROWS_PER_SHEET
 
     wb.save(args.filename)
 
@@ -460,5 +484,6 @@ if __name__ == "__main__":
     print('To print,')
     print('1. open in Excel or LibreOffice Calc,')
     print('2. adjust page size so that all 9 columns of each sudoku is seen')
-    print('   and so that the pages has the right height (first line in same place)')
+    print('   and so that the pages has the right height (the first line on')
+    print('   every page is in the same place)')
     print('3. Print (or export to pdf)')
