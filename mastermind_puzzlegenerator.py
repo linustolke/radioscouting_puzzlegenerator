@@ -22,8 +22,8 @@ Regler: Antalet svarta anger hur många av den rätta radens färger
 som återfinns på rätt plats. Antalet svarta anger hur många av rätta
 radens färger som återfinns på fel plats.
 
-Ledtrådar används vid kontrollen för att få reda på hur många svarta
-och vita som gäller för den raden."""
+Ledtrådar sänds via radio till lagmedlemmen vid kontrollen för att få
+reda på hur många svarta och vita som gäller för den raden."""
 
 STOP_HEADING = """kontroll"""
 BLACK_HEADING = """svarta"""
@@ -42,11 +42,24 @@ ROWS_PER_SHEET = 51
 
 INTRO_ALIGNMENT = openpyxl.styles.Alignment(vertical="top",
                                             wrap_text=True)
+CENTER_ALIGNMENT = openpyxl.styles.Alignment(horizontal="center")
+STOP_ALIGNMENT = CENTER_ALIGNMENT
+CLUE_ALIGNMENT = CENTER_ALIGNMENT
+COLOR_ALIGNMENT = CENTER_ALIGNMENT
 HEADING_FONT = openpyxl.styles.Font(size=9, bold=True)
 SIDE = openpyxl.styles.Side(border_style="thin",
                             color='FF000000')
+
 HEADING_SIDE = openpyxl.styles.Side(border_style="double",
                                     color='FF000000')
+HEADER_BORDER = openpyxl.styles.Border(top=HEADING_SIDE,
+                                       bottom=HEADING_SIDE,
+                                       left=HEADING_SIDE,
+                                       right=HEADING_SIDE)
+CELL_BORDER = openpyxl.styles.Border(top=SIDE,
+                                     bottom=SIDE,
+                                     left=SIDE,
+                                     right=SIDE)
 
 parser = argparse.ArgumentParser(description="Generate a set of mastermind games.")
 parser.add_argument('--sheets', type=int, default=2,
@@ -84,6 +97,7 @@ class Sheet(object):
         """Creates a sheet."""
         self.correct = random_line()
         self.clue_lines = []
+        self.clue_answers = []
         combs = self.combinations(self.clue_lines)
         while combs > 1:
             if len(self.clue_lines) >= args.stops:
@@ -93,13 +107,17 @@ class Sheet(object):
             new_combs = self.combinations(new_clue_lines)
             if new_combs < combs:
                 self.clue_lines = new_clue_lines
+                self.clue_answers.append(self.answer(new_line))
                 combs = new_combs
         if args.debug:
             print("Verified that the sheet is solvable.", len(self.clue_lines), "lines.")
         while len(self.clue_lines) < args.stops:
-            self.clue_lines.append(random_line())
+            new_line = random_line()
+            self.clue_lines.append(new_line)
+            self.clue_answers.append(self.answer(new_line))
 
     def answer(self, clue_line, correct=None):
+        """Returns a tuple of counts for black and white."""
         if correct == None:
             correct = self.correct
         count_black = 0
@@ -178,40 +196,44 @@ class Sheet(object):
         ws.cell(row=row, column=1).alignment = INTRO_ALIGNMENT
 
         row += 15
-        header_border = openpyxl.styles.Border(top=HEADING_SIDE,
-                                               bottom=HEADING_SIDE,
-                                               left=HEADING_SIDE,
-                                               right=HEADING_SIDE)
         for column in range(args.columns):
-            ws.cell(row=row, column=2 + column).border = header_border
+            ws.cell(row=row, column=2 + column).border = HEADER_BORDER
 
         row += 2
         ws.cell(row=row, column=stop_column).value = STOP_HEADING
-        ws.cell(row=row, column=stop_column).border = header_border
+        ws.cell(row=row, column=stop_column).border = HEADER_BORDER
+        ws.cell(row=row, column=stop_column).alignment = STOP_ALIGNMENT
+
         ws.cell(row=row, column=black_column).value = BLACK_HEADING
-        ws.cell(row=row, column=black_column).border = header_border
+        ws.cell(row=row, column=black_column).border = HEADER_BORDER
+        ws.cell(row=row, column=black_column).alignment = CENTER_ALIGNMENT
+
         ws.cell(row=row, column=white_column).value = WHITE_HEADING
-        ws.cell(row=row, column=white_column).border = header_border
+        ws.cell(row=row, column=white_column).border = HEADER_BORDER
+        ws.cell(row=row, column=white_column).alignment = CENTER_ALIGNMENT
+
         ws.cell(row=row, column=clue_column).value = CLUE_HEADING
-        ws.cell(row=row, column=clue_column).border = header_border
+        ws.cell(row=row, column=clue_column).border = HEADER_BORDER
+        ws.cell(row=row, column=clue_column).alignment = CENTER_ALIGNMENT
 
         row += 1
-        border = openpyxl.styles.Border(top=SIDE,
-                                        bottom=SIDE,
-                                        left=SIDE,
-                                        right=SIDE)
         for line in range(args.stops):
             ws.cell(row=row + line, column=stop_column).value = line + 1
-            ws.cell(row=row + line, column=stop_column).border = border
-            ws.cell(row=row + line, column=black_column).border = border
-            ws.cell(row=row + line, column=white_column).border = border
-            ws.cell(row=row + line, column=clue_column).value = "TBD"
-            ws.cell(row=row + line, column=clue_column).border = border
+            ws.cell(row=row + line, column=stop_column).border = CELL_BORDER
+            ws.cell(row=row + line, column=stop_column).alignment = STOP_ALIGNMENT
+            
+            ws.cell(row=row + line, column=black_column).border = CELL_BORDER
+            ws.cell(row=row + line, column=white_column).border = CELL_BORDER
+
+            code = replacement.generate_clue(line + 1, self.clue_answers[line])
+            ws.cell(row=row + line, column=clue_column).value = code
+            ws.cell(row=row + line, column=clue_column).border = CELL_BORDER
 
             for column in range(args.columns):
                 cell = ws.cell(row=row + line, column=2 + column)
                 cell.value = self.clue_lines[line][column]
-                cell.border = border
+                cell.border = CELL_BORDER
+                cell.alignment = COLOR_ALIGNMENT
                 cell.fill = openpyxl.styles.PatternFill("solid", 
                                                         fgColor=openpyxl.styles.Color(indexed=7 + self.clue_lines[line][column]))
 
@@ -220,16 +242,92 @@ class Sheet(object):
         assert row - start_row < ROWS_PER_SHEET
 
 
+class Stops(object):
+    """Maintains all informations from all stops as gotten from each sheet.
+
+    Generates clues as information is added acting as the replacement
+    object when creating sheets."""
+    def __init__(self):
+        self.stop_infos = dict()
+        self.max_clues = args.stops * args.sheets
+        self.next_clue = self.generate_clues()
+
+    def generate_clues(self):
+        clues = list(range(100, 100 + self.max_clues))
+        random.shuffle(clues)
+        for c in clues:
+            yield c
+
+    def generate_clue(self, stop, tuple):
+        if stop not in self.stop_infos:
+            self.stop_infos[stop] = dict()
+        if tuple not in self.stop_infos[stop]:
+            self.stop_infos[stop][tuple] = next(self.next_clue)
+        return self.stop_infos[stop][tuple]
+
+    def output(self, ws, start_row):
+        print(self.stop_infos)
+        for stop_number, _ in enumerate(range(args.stops), start=1):
+            ws.merge_cells(start_row=start_row, end_row=start_row,
+                           start_column=1, end_column=9)
+            ws.cell(row=start_row, column=1).value = HEADING_PER_STOP + " " + str(stop_number)
+            ws.cell(row=start_row, column=1).alignment = INTRO_ALIGNMENT
+            row = start_row + 3
+
+            clue_column = 1
+            black_column = 2
+            white_column = 3
+
+            ws.cell(row=row, column=clue_column).value = CLUE_HEADING
+            ws.cell(row=row, column=clue_column).border = HEADER_BORDER
+            ws.cell(row=row, column=clue_column).alignment = CLUE_ALIGNMENT
+            
+            ws.cell(row=row, column=black_column).value = BLACK_HEADING
+            ws.cell(row=row, column=black_column).border = HEADER_BORDER
+            ws.cell(row=row, column=black_column).alignment = CLUE_ALIGNMENT
+            
+            ws.cell(row=row, column=white_column).value = WHITE_HEADING
+            ws.cell(row=row, column=white_column).border = HEADER_BORDER
+            ws.cell(row=row, column=white_column).alignment = CLUE_ALIGNMENT
+
+            row += 2
+            for clue, tuple in sorted([(v,k,) for k, v in self.stop_infos[stop_number].items()]):
+                blacks, whites = tuple
+                ws.cell(row=row, column=clue_column).value = str(clue)
+                ws.cell(row=row, column=clue_column).border = CELL_BORDER
+                ws.cell(row=row, column=clue_column).alignment = CLUE_ALIGNMENT
+
+                ws.cell(row=row, column=black_column).value = str(blacks)
+                ws.cell(row=row, column=black_column).border = CELL_BORDER
+                ws.cell(row=row, column=black_column).alignment = CLUE_ALIGNMENT
+
+                ws.cell(row=row, column=white_column).value = str(whites)
+                ws.cell(row=row, column=white_column).border = CELL_BORDER
+                ws.cell(row=row, column=white_column).alignment = CLUE_ALIGNMENT
+
+                row += 1
+
+            assert row - start_row < ROWS_PER_SHEET
+            start_row += ROWS_PER_SHEET
+
 if __name__ == "__main__":
     args = parser.parse_args()
-
-    s = Sheet()
-    print(s.correct)
-    print(s.clue_lines)
 
     wb = openpyxl.Workbook()
     ws = wb.active
 
-    s.output(ws, "1", 1, None)
+    stops = Stops()
+
+    row = 1
+    for index in range(args.sheets):
+        sheet_number = 1 + index
+        s = Sheet()
+        print(s.correct)
+        print(s.clue_lines)
+
+        s.output(ws, str(sheet_number), row, stops)
+        row += ROWS_PER_SHEET
+
+    stops.output(ws, row)
 
     wb.save("mm.xlsx")
