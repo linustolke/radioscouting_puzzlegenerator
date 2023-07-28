@@ -41,6 +41,7 @@ apparaten för att söka efter ledtrådar samtidigt som ni andra använder
 informationen för att så snabbt som möjligt få fram koden."""
 
 CORRECT_HEADING = """Rätt kod"""
+SOLVED_IN_HEADING = """Löses på"""
 
 STOP_HEADING = """kontroll"""
 BLACK_HEADING = """svarta"""
@@ -55,7 +56,7 @@ Kontrollen innehåller ledtrådar till att hitta koden till
 Bergatrollets skattgömma. Ni kan hjälpa Bergatrollet med detta hos
 radioscouterna."""
 
-ROWS_PER_SHEET = 51
+ROWS_PER_SHEET = 58
 
 INTRO_ALIGNMENT = openpyxl.styles.Alignment(vertical="top",
                                             wrap_text=True)
@@ -134,8 +135,9 @@ class Sheet(object):
                 self.clue_lines = new_clue_lines
                 self.clue_answers.append(self.answer(new_line))
                 combs = new_combs
+        self.solvable = len(self.clue_lines)
         if self.args.debug:
-            print("Verified that the sheet is solvable.", len(self.clue_lines), "lines.")
+            print("Verified that the sheet is solvable.", self.solvable, "lines.")
         while len(self.clue_lines) < self.args.stops:
             new_line = random_line(self.args)
             self.clue_lines.append(new_line)
@@ -372,18 +374,20 @@ if __name__ == "__main__":
         s = Sheet(args, index < args.easy)
         print(s.correct)
         print(s.clue_lines)
-        correct_lines[sheet_number] = s.correct
+        correct_lines[sheet_number] = (s.correct, s.solvable)
 
         s.output(ws, str(sheet_number), row, stops)
         row += ROWS_PER_SHEET
 
     correct_answers_heading_written = False
     line = 0
-    for sheet_number, correct in correct_lines.items():
+    for sheet_number, tuple in correct_lines.items():
+        correct, solvable = tuple
         if not correct_answers_heading_written:
             correct_answers_heading_written = True
             ws.cell(row=row, column=1).value = HEADING_CORRECT_ANSWERS
             ws.cell(row=row + 2, column=1).value = CORRECT_HEADING
+            ws.cell(row=row + 2, column=2 + args.columns + 1).value = SOLVED_IN_HEADING
             line = 3
 
         ws.cell(row=row + line, column = 1).value = sheet_number
@@ -394,6 +398,7 @@ if __name__ == "__main__":
             cell.alignment = COLOR_ALIGNMENT
             cell.fill = openpyxl.styles.PatternFill("solid", 
                                                     fgColor=openpyxl.styles.Color(indexed=8 + correct[column]))
+        ws.cell(row=row + line, column=2 + args.columns + 1).value = solvable
 
         line += 1
         if line > ROWS_PER_SHEET - 5:
