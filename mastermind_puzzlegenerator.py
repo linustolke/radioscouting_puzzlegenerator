@@ -17,28 +17,43 @@ HEADING_CORRECT_ANSWERS = "Facit"
 INTRO_TEXT_PER_SHEET = """\
 Det här är lagblanketten för Radiomastermind på Skogsrå.
 
-Uppgiften är att få tag på den rätta raden, rätt kombination av
-färger.  Fyll i den rätta raden längst upp.
+Bergatrollet är väldigt olyckligt för någon har ändrat koden för att
+komma in till hans skattgömma. Han har kontaktat oss för att vi har
+magiska krafter och apparater som kan hjälpa. Vi har lyckats lista ut
+hur man ska få fram koden men behöver er hjälp för att Bergatrollet
+ska kunna komma åt sina rikedomar.
 
-Regler: Antalet svarta anger hur många av den rätta radens färger
-som återfinns på rätt plats. Antalet svarta anger hur många av rätta
-radens färger som återfinns på fel plats.
+Koden som vi är ute efter är en kombination av färger med nummer. Vi
+har, med våra magiska metoder, provat koder och när vi gör det så
+uppstår det information om hur bra de koderna som vi provar är. Denna
+information dyker med hjälp av vår kraftfulla magi upp längs
+Knyttstigen.
 
-Ledtrådar sänds via radio till lagmedlemmen vid kontrollen för att få
-reda på hur många svarta och vita som gäller för den raden."""
+Detta papper innehåller koder som vi provat med. Hur bra varje kod är
+framgår av antalet svarta och vita. Svarta anger hur många av kodens
+färger som återfinns i den rätta koden på rätt plats. Antalet vita
+anger hur många av som återfinns på fel plats. Det gäller att använda
+informationen om svarta och vita för att få fram rätt kod.
+
+Det är farligt att samla in dessa ledtrådar. Bara en scout skyddas av
+apparatens magi så ni måste skicka ut en modig scout som använder
+apparaten för att söka efter ledtrådar samtidigt som ni andra använder
+informationen för att så snabbt som möjligt få fram koden."""
+
+CORRECT_HEADING = """Rätt kod"""
 
 STOP_HEADING = """kontroll"""
 BLACK_HEADING = """svarta"""
 WHITE_HEADING = """vita"""
 CLUE_HEADING = """ledtråd"""
 
-HEADING_PER_STOP = "Radiomastermindkontroll nummer"
+HEADING_PER_STOP = "Radiomastermind kontroll nummer"
 
 INTRO_TEXT_PER_STOP = """Detta är en kontroll för Radiomastermind på Skogsrå.
 
-Radiomastermind är en patrullövning med radiokommunikation som ni kan
-få göra som en programaktivitet om ni bokar ett aktivitetspass med
-radioscouting eller som ni kan prova en kväll."""
+Kontrollen innehåller ledtrådar till att hitta koden till
+Bergatrollets skattgömma. Ni kan hjälpa Bergatrollet med detta hos
+radioscouterna."""
 
 ROWS_PER_SHEET = 51
 
@@ -107,6 +122,9 @@ class Sheet(object):
             if len(self.clue_lines) >= self.args.stops:
                 raise TooManyClues()
             new_line = random_line(self.args)
+            if new_line == self.correct:
+                # Too easy
+                continue
             if self.easy:
                 if self.answer(new_line)[0] == 0:
                     continue
@@ -211,12 +229,13 @@ class Sheet(object):
         ws.cell(row=start_row, column=1).alignment = INTRO_ALIGNMENT
 
         row = start_row + 3
-        ws.merge_cells(start_row=row, end_row=row + 12,
+        intro_lines = 22
+        ws.merge_cells(start_row=row, end_row=row + intro_lines,
                        start_column=1, end_column=9)
         ws.cell(row=row, column=1).value = INTRO_TEXT_PER_SHEET
         ws.cell(row=row, column=1).alignment = INTRO_ALIGNMENT
 
-        row += 15
+        row += intro_lines + 2
         for column in range(self.args.columns):
             ws.cell(row=row, column=2 + column).border = HEADER_BORDER
 
@@ -256,7 +275,7 @@ class Sheet(object):
                 cell.border = CELL_BORDER
                 cell.alignment = COLOR_ALIGNMENT
                 cell.fill = openpyxl.styles.PatternFill("solid", 
-                                                        fgColor=openpyxl.styles.Color(indexed=7 + self.clue_lines[line][column]))
+                                                        fgColor=openpyxl.styles.Color(indexed=8 + self.clue_lines[line][column]))
 
         row += line
 
@@ -288,7 +307,6 @@ class Stops(object):
         return self.stop_infos[stop][tuple]
 
     def output(self, ws, start_row):
-        print(self.stop_infos)
         for stop_number, _ in enumerate(range(self.args.stops), start=1):
             ws.merge_cells(start_row=start_row, end_row=start_row,
                            start_column=1, end_column=9)
@@ -296,6 +314,13 @@ class Stops(object):
             ws.cell(row=start_row, column=1).alignment = INTRO_ALIGNMENT
             row = start_row + 3
 
+            intro_lines = 6
+            ws.merge_cells(start_row=row, end_row=row + intro_lines,
+                           start_column=1, end_column=9)
+            ws.cell(row=row, column=1).value = INTRO_TEXT_PER_STOP
+            ws.cell(row=row, column=1).alignment = INTRO_ALIGNMENT
+
+            row += intro_lines + 2
             clue_column = 1
             black_column = 2
             white_column = 3
@@ -358,7 +383,8 @@ if __name__ == "__main__":
         if not correct_answers_heading_written:
             correct_answers_heading_written = True
             ws.cell(row=row, column=1).value = HEADING_CORRECT_ANSWERS
-            line = 2
+            ws.cell(row=row + 2, column=1).value = CORRECT_HEADING
+            line = 3
 
         ws.cell(row=row + line, column = 1).value = sheet_number
         for column in range(args.columns):
@@ -367,7 +393,7 @@ if __name__ == "__main__":
             cell.border = CELL_BORDER
             cell.alignment = COLOR_ALIGNMENT
             cell.fill = openpyxl.styles.PatternFill("solid", 
-                                                    fgColor=openpyxl.styles.Color(indexed=7 + correct[column]))
+                                                    fgColor=openpyxl.styles.Color(indexed=8 + correct[column]))
 
         line += 1
         if line > ROWS_PER_SHEET - 5:
