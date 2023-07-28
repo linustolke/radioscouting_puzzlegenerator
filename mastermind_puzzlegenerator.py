@@ -10,7 +10,9 @@ import openpyxl.styles
 import random
 from functools import reduce, lru_cache
 
-HEADING_PER_SHEET = "Lagblankett"
+HEADING_PER_SHEET = "Lagblankett (svår)"
+HEADING_PER_EASY_SHEET = "Lagblankett"
+HEADING_CORRECT_ANSWERS = "Facit"
 
 INTRO_TEXT_PER_SHEET = """\
 Det här är lagblanketten för Radiomastermind på Skogsrå.
@@ -63,12 +65,14 @@ CELL_BORDER = openpyxl.styles.Border(top=SIDE,
 
 parser = argparse.ArgumentParser(description="Generate a set of mastermind games.")
 parser.add_argument('--sheets', type=int, default=2,
-                    help='Number of sheets')
-parser.add_argument('--columns', type=int, default=5,
+                    help='Number of sheets (counting also the easy ones)')
+parser.add_argument('--easy', type=int, default=0,
+                    help='Number of the sheets that are easy')
+parser.add_argument('--columns', type=int, default=4,
                     help='Number of clues to guess')
 parser.add_argument('--colors', type=int, default=8,
                     help='Number of colors to choose from')
-parser.add_argument('--stops', type=int, default=13,
+parser.add_argument('--stops', type=int, default=15,
                     help='Number of stops to go to on the course')
 parser.add_argument('--filename', type=str,
                     help='The file where the result is stored',
@@ -77,9 +81,7 @@ parser.add_argument('--debug', '-d', action='store_true',
                     help='Activate trace outputs',
                     default=False)
 
-args = None
-
-def random_line():
+def random_line(args):
     """Generate a random line."""
     line = []
     for _ in range(args.columns):
@@ -93,26 +95,31 @@ class NoCombinationsLeft(Exception):
     pass
 
 class Sheet(object):
-    def __init__(self):
+    def __init__(self, args, easy=False):
         """Creates a sheet."""
-        self.correct = random_line()
+        self.args = args
+        self.easy = easy
+        self.correct = random_line(self.args)
         self.clue_lines = []
         self.clue_answers = []
         combs = self.combinations(self.clue_lines)
         while combs > 1:
-            if len(self.clue_lines) >= args.stops:
+            if len(self.clue_lines) >= self.args.stops:
                 raise TooManyClues()
-            new_line = random_line()
+            new_line = random_line(self.args)
+            if self.easy:
+                if self.answer(new_line)[0] == 0:
+                    continue
             new_clue_lines = self.clue_lines + [new_line]
             new_combs = self.combinations(new_clue_lines)
             if new_combs < combs:
                 self.clue_lines = new_clue_lines
                 self.clue_answers.append(self.answer(new_line))
                 combs = new_combs
-        if args.debug:
+        if self.args.debug:
             print("Verified that the sheet is solvable.", len(self.clue_lines), "lines.")
-        while len(self.clue_lines) < args.stops:
-            new_line = random_line()
+        while len(self.clue_lines) < self.args.stops:
+            new_line = random_line(self.args)
             self.clue_lines.append(new_line)
             self.clue_answers.append(self.answer(new_line))
 
@@ -121,36 +128,44 @@ class Sheet(object):
         if correct == None:
             correct = self.correct
         count_black = 0
-        for i in range(args.columns):
+        counted = []
+        rest_correct = list(correct)
+        rest_clue = list(clue_line)
+        for i in range(self.args.columns):
             if correct[i] == clue_line[i]:
                 count_black += 1
+                rest_correct.remove(correct[i])
+                rest_clue.remove(clue_line[i])
         count_white = 0
-        for i in range(args.columns):
-            if correct[i] in (clue_line[0:i] + clue_line[i + 1:]):
+        for c in rest_clue:
+            if c in rest_correct:
                 count_white += 1
+                rest_correct.remove(c)
+                
         return count_black, count_white
 
     def combinations(self, clue_lines):
-        reduced_combinations = [set(range(1, args.colors + 1)) for _ in range(args.columns)]
+        reduced_combinations = [set(range(1, self.args.colors + 1)) for _ in range(self.args.columns)]
         for clue_line in clue_lines:
             black, white = self.answer(clue_line)
             if black == 0 and white == 0:
-                for i in range(args.columns):
-                    for j in range(args.columns):
+                for i in range(self.args.columns):
+                    for j in range(self.args.columns):
                         if clue_line[j] in reduced_combinations[i]:
                             reduced_combinations[i].remove(clue_line[j])
             elif black == 0:
-                for i in range(args.columns):
+                for i in range(self.args.columns):
                     if clue_line[i] in reduced_combinations[i]:
                         reduced_combinations[i].remove(clue_line[i])
-        if args.debug:
-            print("Combinations left:",
-                  reduce((lambda x, y: x * y),
-                         [len(s) for s in reduced_combinations]))
+        if self.args.debug:
+            red = reduce((lambda x, y: x * y),
+                         [len(s) for s in reduced_combinations])
+            if red < self.args.columns * self.args.colors:
+                print("Reduced combinations:", red)
         combinations = []
         for x in reduced_combinations[0]:
             combinations.append([x])
-        for c in range(1, args.columns):
+        for c in range(1, self.args.columns):
             old_combinations = combinations
             combinations = []
             for x in reduced_combinations[c]:
@@ -160,10 +175,13 @@ class Sheet(object):
         for comb in combinations:
             for clue_line in clue_lines:
                 if self.answer(clue_line, comb) != self.answer(clue_line):
-                    continue
-            valid_combinations.append(comb)
+                    break
+            else:
+                valid_combinations.append(comb)
         if len(valid_combinations) == 0:
             raise NoCombinationsLeft()
+        if self.args.debug:
+            print("Combinations:", len(valid_combinations))
         return len(valid_combinations)
 
     def output(self, ws, sheet_identity, start_row, replacement):
@@ -180,13 +198,16 @@ class Sheet(object):
         Headers are created.
         """
         stop_column = 1
-        black_column = 1 + args.columns + 2
+        black_column = 1 + self.args.columns + 2
         white_column = black_column + 1
         clue_column = white_column + 1
 
         ws.merge_cells(start_row=start_row, end_row=start_row,
                        start_column=1, end_column=9)
-        ws.cell(row=start_row, column=1).value = HEADING_PER_SHEET + " " + sheet_identity
+        heading = HEADING_PER_SHEET
+        if self.easy:
+            heading = HEADING_PER_EASY_SHEET
+        ws.cell(row=start_row, column=1).value = heading + " " + sheet_identity
         ws.cell(row=start_row, column=1).alignment = INTRO_ALIGNMENT
 
         row = start_row + 3
@@ -196,7 +217,7 @@ class Sheet(object):
         ws.cell(row=row, column=1).alignment = INTRO_ALIGNMENT
 
         row += 15
-        for column in range(args.columns):
+        for column in range(self.args.columns):
             ws.cell(row=row, column=2 + column).border = HEADER_BORDER
 
         row += 2
@@ -217,7 +238,7 @@ class Sheet(object):
         ws.cell(row=row, column=clue_column).alignment = CENTER_ALIGNMENT
 
         row += 1
-        for line in range(args.stops):
+        for line in range(self.args.stops):
             ws.cell(row=row + line, column=stop_column).value = line + 1
             ws.cell(row=row + line, column=stop_column).border = CELL_BORDER
             ws.cell(row=row + line, column=stop_column).alignment = STOP_ALIGNMENT
@@ -229,7 +250,7 @@ class Sheet(object):
             ws.cell(row=row + line, column=clue_column).value = code
             ws.cell(row=row + line, column=clue_column).border = CELL_BORDER
 
-            for column in range(args.columns):
+            for column in range(self.args.columns):
                 cell = ws.cell(row=row + line, column=2 + column)
                 cell.value = self.clue_lines[line][column]
                 cell.border = CELL_BORDER
@@ -247,9 +268,10 @@ class Stops(object):
 
     Generates clues as information is added acting as the replacement
     object when creating sheets."""
-    def __init__(self):
+    def __init__(self, args):
+        self.args = args
         self.stop_infos = dict()
-        self.max_clues = args.stops * args.sheets
+        self.max_clues = self.args.stops * self.args.sheets
         self.next_clue = self.generate_clues()
 
     def generate_clues(self):
@@ -267,7 +289,7 @@ class Stops(object):
 
     def output(self, ws, start_row):
         print(self.stop_infos)
-        for stop_number, _ in enumerate(range(args.stops), start=1):
+        for stop_number, _ in enumerate(range(self.args.stops), start=1):
             ws.merge_cells(start_row=start_row, end_row=start_row,
                            start_column=1, end_column=9)
             ws.cell(row=start_row, column=1).value = HEADING_PER_STOP + " " + str(stop_number)
@@ -316,17 +338,43 @@ if __name__ == "__main__":
     wb = openpyxl.Workbook()
     ws = wb.active
 
-    stops = Stops()
+    stops = Stops(args)
 
     row = 1
+    correct_lines = dict()
     for index in range(args.sheets):
         sheet_number = 1 + index
-        s = Sheet()
+        s = Sheet(args, index < args.easy)
         print(s.correct)
         print(s.clue_lines)
+        correct_lines[sheet_number] = s.correct
 
         s.output(ws, str(sheet_number), row, stops)
         row += ROWS_PER_SHEET
+
+    correct_answers_heading_written = False
+    line = 0
+    for sheet_number, correct in correct_lines.items():
+        if not correct_answers_heading_written:
+            correct_answers_heading_written = True
+            ws.cell(row=row, column=1).value = HEADING_CORRECT_ANSWERS
+            line = 2
+
+        ws.cell(row=row + line, column = 1).value = sheet_number
+        for column in range(args.columns):
+            cell = ws.cell(row=row + line, column=2 + column)
+            cell.value = correct[column]
+            cell.border = CELL_BORDER
+            cell.alignment = COLOR_ALIGNMENT
+            cell.fill = openpyxl.styles.PatternFill("solid", 
+                                                    fgColor=openpyxl.styles.Color(indexed=7 + correct[column]))
+
+        line += 1
+        if line > ROWS_PER_SHEET - 5:
+            correct_answers_heading_written = False
+            row += ROWS_PER_SHEET
+
+    row += ROWS_PER_SHEET
 
     stops.output(ws, row)
 
