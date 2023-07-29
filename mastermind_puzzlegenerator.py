@@ -17,17 +17,18 @@ HEADING_CORRECT_ANSWERS = "Facit"
 INTRO_TEXT_PER_SHEET = """\
 Det här är lagblanketten för Radiomastermind på Skogsrå.
 
-Bergatrollet är väldigt olyckligt för någon har ändrat koden för att
-komma in till hans skattgömma. Han har kontaktat oss för att vi har
-magiska krafter och apparater som kan hjälpa. Vi har lyckats lista ut
-hur man ska få fram koden men behöver er hjälp för att Bergatrollet
-ska kunna komma åt sina rikedomar.
+Bergatrollet är väldigt olyckligt för någon, troligtvis knytten, har
+ändrat koden för att komma in till hans skattgömma. Han har, i största
+hemlighet, kontaktat oss för att vi har magiska krafter och apparater
+som kan hjälpa. Vi har lyckats lista ut hur man ska få fram koden men
+behöver er hjälp för att Bergatrollet ska kunna komma åt sina
+rikedomar.
 
-Koden som vi är ute efter är en kombination av färger med nummer. Vi
-har, med våra magiska metoder, provat koder och när vi gör det så
-uppstår det information om hur bra de koderna som vi provar är. Denna
-information dyker med hjälp av vår kraftfulla magi upp längs
-Knyttstigen.
+Koden som saknas är en kombination av färger med nummer. Med våra
+magiska metoder, kan vi tvinga Knytten att lämna ledtrådar till koder
+som vi provar. Vi vet att det fungerar och att någon, troligen
+Knytten, lämnar denna information längs Knyttstigen men vi har inte
+sett något knytt göra det.
 
 Detta papper innehåller koder som vi provat med. Hur bra varje kod är
 framgår av antalet svarta och vita. Svarta anger hur många av kodens
@@ -38,9 +39,9 @@ informationen om svarta och vita för att få fram rätt kod.
 Det är farligt att samla in dessa ledtrådar. Bara en scout skyddas av
 apparatens magi så ni måste skicka ut en modig scout som använder
 apparaten för att söka efter ledtrådar samtidigt som ni andra använder
-informationen för att så snabbt som möjligt få fram koden."""
+informationen för att så snabbt som möjligt lista ut koden."""
 
-CORRECT_HEADING = """Rätt kod"""
+CORRECT_HEADING = """Rätt kod:"""
 SOLVED_IN_HEADING = """Löses på"""
 
 STOP_HEADING = """kontroll"""
@@ -238,6 +239,7 @@ class Sheet(object):
         ws.cell(row=row, column=1).alignment = INTRO_ALIGNMENT
 
         row += intro_lines + 2
+        ws.cell(row=row, column=1).value = CORRECT_HEADING
         for column in range(self.args.columns):
             ws.cell(row=row, column=2 + column).border = HEADER_BORDER
 
