@@ -19,7 +19,7 @@ import random
 HEADING_PER_SHEET = "Deltagarblankett"
 
 INTRO_TEXT_PER_SHEET = """\
-Det här är ett deltagarprotokoll för Radiosudoku på Skogsrå.
+Det här är ett deltagarprotokoll för Radiosudoku.
 
 Regler för vanlig sudoku gäller dvs, i varje ruta ska det in en siffra
 på ett sånt sätt att varje rad, varje kolumn, och varje 3x3-ruta
@@ -30,11 +30,7 @@ bokstavskoden är vilken ledtråd det är på den kontrollen."""
 
 HEADING_PER_STOP = "Radiosudokukontroll nummer"
 
-INTRO_TEXT_PER_STOP = """Detta är en kontroll för Radiosudoku på Skogsrå.
-
-Det är en patrullövning med radiokommunikation som ni kan få göra som
-en programaktivitet om ni bokar ett aktivitetspass med radioscouting
-eller som ni kan prova en kväll."""
+INTRO_TEXT_PER_STOP = """Detta är en kontroll för Radiosudoku."""
 
 ROWS_PER_SHEET = 51
 
