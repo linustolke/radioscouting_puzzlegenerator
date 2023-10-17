@@ -256,7 +256,7 @@ class Sheet(object):
                     column_borders["left"] = BOX_SIDE
                 if column % 3 == 2:
                     column_borders["right"] = BOX_SIDE
-                cell = ws.cell(row=row, column=1 + column).value
+                cell = ws.cell(row=row, column=1 + column)
                 cell.value = self.get_board_clue(line, column, replacement)
                 cell.font = CLUE_FONT
                 cell.alignment = CELL_ALIGNMENT
