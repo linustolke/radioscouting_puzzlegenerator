@@ -3,6 +3,7 @@
 import unittest
 from mastermind_puzzlegenerator import Sheet
 
+
 class SheetTestCase(unittest.TestCase):
     def setUp(self):
         class A(object):
@@ -72,9 +73,7 @@ class SheetTestCase(unittest.TestCase):
         self.sheet.args.debug = True
         self.sheet.correct = [1, 2]
         self.assertEqual(self.sheet.combinations([]), 4)
-        import pdb; pdb.set_trace()
         self.assertEqual(self.sheet.combinations([[1, 3]]), 2)
-
 
 
 if __name__ == '__main__':

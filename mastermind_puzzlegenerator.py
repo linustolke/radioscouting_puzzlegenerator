@@ -8,7 +8,9 @@ import argparse
 import openpyxl
 import openpyxl.styles
 import random
-from functools import reduce, lru_cache
+from openpyxl.styles import Color, PatternFill, Border, Side, Font, \
+    Alignment
+from functools import reduce
 
 HEADING_PER_SHEET = "Lagblankett (svår)"
 HEADING_PER_EASY_SHEET = "Lagblankett"
@@ -59,28 +61,29 @@ radioscouterna."""
 
 ROWS_PER_SHEET = 58
 
-INTRO_ALIGNMENT = openpyxl.styles.Alignment(vertical="top",
-                                            wrap_text=True)
-CENTER_ALIGNMENT = openpyxl.styles.Alignment(horizontal="center")
+INTRO_ALIGNMENT = Alignment(vertical="top",
+                            wrap_text=True)
+CENTER_ALIGNMENT = Alignment(horizontal="center")
 STOP_ALIGNMENT = CENTER_ALIGNMENT
 CLUE_ALIGNMENT = CENTER_ALIGNMENT
 COLOR_ALIGNMENT = CENTER_ALIGNMENT
-HEADING_FONT = openpyxl.styles.Font(size=9, bold=True)
-SIDE = openpyxl.styles.Side(border_style="thin",
-                            color='FF000000')
+HEADING_FONT = Font(size=9, bold=True)
+SIDE = Side(border_style="thin",
+            color='FF000000')
 
-HEADING_SIDE = openpyxl.styles.Side(border_style="double",
-                                    color='FF000000')
-HEADER_BORDER = openpyxl.styles.Border(top=HEADING_SIDE,
-                                       bottom=HEADING_SIDE,
-                                       left=HEADING_SIDE,
-                                       right=HEADING_SIDE)
-CELL_BORDER = openpyxl.styles.Border(top=SIDE,
-                                     bottom=SIDE,
-                                     left=SIDE,
-                                     right=SIDE)
+HEADING_SIDE = Side(border_style="double",
+                    color='FF000000')
+HEADER_BORDER = Border(top=HEADING_SIDE,
+                       bottom=HEADING_SIDE,
+                       left=HEADING_SIDE,
+                       right=HEADING_SIDE)
+CELL_BORDER = Border(top=SIDE,
+                     bottom=SIDE,
+                     left=SIDE,
+                     right=SIDE)
 
-parser = argparse.ArgumentParser(description="Generate a set of mastermind games.")
+parser = argparse.ArgumentParser(
+    description="Generate a set of mastermind games.")
 parser.add_argument('--sheets', type=int, default=2,
                     help='Number of sheets (counting also the easy ones)')
 parser.add_argument('--easy', type=int, default=0,
@@ -98,6 +101,7 @@ parser.add_argument('--debug', '-d', action='store_true',
                     help='Activate trace outputs',
                     default=False)
 
+
 def random_line(args):
     """Generate a random line."""
     line = []
@@ -105,11 +109,14 @@ def random_line(args):
         line.append(random.randint(1, args.colors))
     return line
 
+
 class TooManyClues(Exception):
     pass
 
+
 class NoCombinationsLeft(Exception):
     pass
+
 
 class Sheet(object):
     def __init__(self, args, easy=False):
@@ -138,7 +145,8 @@ class Sheet(object):
                 combs = new_combs
         self.solvable = len(self.clue_lines)
         if self.args.debug:
-            print("Verified that the sheet is solvable.", self.solvable, "lines.")
+            print("Verified that the sheet is solvable.",
+                  self.solvable, "lines.")
         while len(self.clue_lines) < self.args.stops:
             new_line = random_line(self.args)
             self.clue_lines.append(new_line)
@@ -146,10 +154,9 @@ class Sheet(object):
 
     def answer(self, clue_line, correct=None):
         """Returns a tuple of counts for black and white."""
-        if correct == None:
+        if correct is None:
             correct = self.correct
         count_black = 0
-        counted = []
         rest_correct = list(correct)
         rest_clue = list(clue_line)
         for i in range(self.args.columns):
@@ -162,11 +169,12 @@ class Sheet(object):
             if c in rest_correct:
                 count_white += 1
                 rest_correct.remove(c)
-                
+
         return count_black, count_white
 
     def combinations(self, clue_lines):
-        reduced_combinations = [set(range(1, self.args.colors + 1)) for _ in range(self.args.columns)]
+        reduced_combinations = [set(range(1, self.args.colors + 1))
+                                for _ in range(self.args.columns)]
         for clue_line in clue_lines:
             black, white = self.answer(clue_line)
             if black == 0 and white == 0:
@@ -262,12 +270,17 @@ class Sheet(object):
 
         row += 1
         for line in range(self.args.stops):
-            ws.cell(row=row + line, column=stop_column).value = line + 1
-            ws.cell(row=row + line, column=stop_column).border = CELL_BORDER
-            ws.cell(row=row + line, column=stop_column).alignment = STOP_ALIGNMENT
-            
-            ws.cell(row=row + line, column=black_column).border = CELL_BORDER
-            ws.cell(row=row + line, column=white_column).border = CELL_BORDER
+            ws.cell(row=row + line,
+                    column=stop_column).value = line + 1
+            ws.cell(row=row + line,
+                    column=stop_column).border = CELL_BORDER
+            ws.cell(row=row + line,
+                    column=stop_column).alignment = STOP_ALIGNMENT
+
+            ws.cell(row=row + line,
+                    column=black_column).border = CELL_BORDER
+            ws.cell(row=row + line,
+                    column=white_column).border = CELL_BORDER
 
             code = replacement.generate_clue(line + 1, self.clue_answers[line])
             ws.cell(row=row + line, column=clue_column).value = code
@@ -278,8 +291,9 @@ class Sheet(object):
                 cell.value = self.clue_lines[line][column]
                 cell.border = CELL_BORDER
                 cell.alignment = COLOR_ALIGNMENT
-                cell.fill = openpyxl.styles.PatternFill("solid", 
-                                                        fgColor=openpyxl.styles.Color(indexed=8 + self.clue_lines[line][column]))
+                cell.fill = PatternFill(
+                    "solid",
+                    fgColor=Color(indexed=8 + self.clue_lines[line][column]))
 
         row += line
 
@@ -291,6 +305,7 @@ class Stops(object):
 
     Generates clues as information is added acting as the replacement
     object when creating sheets."""
+
     def __init__(self, args):
         self.args = args
         self.stop_infos = dict()
@@ -314,8 +329,10 @@ class Stops(object):
         for stop_number, _ in enumerate(range(self.args.stops), start=1):
             ws.merge_cells(start_row=start_row, end_row=start_row,
                            start_column=1, end_column=9)
-            ws.cell(row=start_row, column=1).value = HEADING_PER_STOP + " " + str(stop_number)
-            ws.cell(row=start_row, column=1).alignment = INTRO_ALIGNMENT
+            ws.cell(row=start_row,
+                    column=1).value = HEADING_PER_STOP + " " + str(stop_number)
+            ws.cell(row=start_row,
+                    column=1).alignment = INTRO_ALIGNMENT
             row = start_row + 3
 
             intro_lines = 6
@@ -332,34 +349,47 @@ class Stops(object):
             ws.cell(row=row, column=clue_column).value = CLUE_HEADING
             ws.cell(row=row, column=clue_column).border = HEADER_BORDER
             ws.cell(row=row, column=clue_column).alignment = CLUE_ALIGNMENT
-            
+
             ws.cell(row=row, column=black_column).value = BLACK_HEADING
             ws.cell(row=row, column=black_column).border = HEADER_BORDER
             ws.cell(row=row, column=black_column).alignment = CLUE_ALIGNMENT
-            
+
             ws.cell(row=row, column=white_column).value = WHITE_HEADING
             ws.cell(row=row, column=white_column).border = HEADER_BORDER
             ws.cell(row=row, column=white_column).alignment = CLUE_ALIGNMENT
 
             row += 2
-            for clue, tuple in sorted([(v,k,) for k, v in self.stop_infos[stop_number].items()]):
+            for clue, tuple in sorted([(v, k,)
+                                       for k, v
+                                       in self.stop_infos[stop_number].items()
+                                       ]):
                 blacks, whites = tuple
-                ws.cell(row=row, column=clue_column).value = str(clue)
-                ws.cell(row=row, column=clue_column).border = CELL_BORDER
-                ws.cell(row=row, column=clue_column).alignment = CLUE_ALIGNMENT
+                ws.cell(row=row,
+                        column=clue_column).value = str(clue)
+                ws.cell(row=row,
+                        column=clue_column).border = CELL_BORDER
+                ws.cell(row=row,
+                        column=clue_column).alignment = CLUE_ALIGNMENT
 
-                ws.cell(row=row, column=black_column).value = str(blacks)
-                ws.cell(row=row, column=black_column).border = CELL_BORDER
-                ws.cell(row=row, column=black_column).alignment = CLUE_ALIGNMENT
+                ws.cell(row=row,
+                        column=black_column).value = str(blacks)
+                ws.cell(row=row,
+                        column=black_column).border = CELL_BORDER
+                ws.cell(row=row,
+                        column=black_column).alignment = CLUE_ALIGNMENT
 
-                ws.cell(row=row, column=white_column).value = str(whites)
-                ws.cell(row=row, column=white_column).border = CELL_BORDER
-                ws.cell(row=row, column=white_column).alignment = CLUE_ALIGNMENT
+                ws.cell(row=row,
+                        column=white_column).value = str(whites)
+                ws.cell(row=row,
+                        column=white_column).border = CELL_BORDER
+                ws.cell(row=row,
+                        column=white_column).alignment = CLUE_ALIGNMENT
 
                 row += 1
 
             assert row - start_row < ROWS_PER_SHEET
             start_row += ROWS_PER_SHEET
+
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -387,19 +417,22 @@ if __name__ == "__main__":
         correct, solvable = tuple
         if not correct_answers_heading_written:
             correct_answers_heading_written = True
-            ws.cell(row=row, column=1).value = HEADING_CORRECT_ANSWERS
-            ws.cell(row=row + 2, column=1).value = CORRECT_HEADING
-            ws.cell(row=row + 2, column=2 + args.columns + 1).value = SOLVED_IN_HEADING
+            ws.cell(row=row,
+                    column=1).value = HEADING_CORRECT_ANSWERS
+            ws.cell(row=row + 2,
+                    column=1).value = CORRECT_HEADING
+            ws.cell(row=row + 2,
+                    column=2 + args.columns + 1).value = SOLVED_IN_HEADING
             line = 3
 
-        ws.cell(row=row + line, column = 1).value = sheet_number
+        ws.cell(row=row + line, column=1).value = sheet_number
         for column in range(args.columns):
             cell = ws.cell(row=row + line, column=2 + column)
             cell.value = correct[column]
             cell.border = CELL_BORDER
             cell.alignment = COLOR_ALIGNMENT
-            cell.fill = openpyxl.styles.PatternFill("solid", 
-                                                    fgColor=openpyxl.styles.Color(indexed=8 + correct[column]))
+            cell.fill = PatternFill("solid",
+                                    fgColor=Color(indexed=8 + correct[column]))
         ws.cell(row=row + line, column=2 + args.columns + 1).value = solvable
 
         line += 1
